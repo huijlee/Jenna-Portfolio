@@ -2498,10 +2498,6 @@ html[lang="ja"] .sk-items{font-family:'Inter','Noto Sans JP',sans-serif}
 </head>
 <body>
 
-<!-- Netlify Forms: static copy of the contact form so Netlify detects it at deploy -->
-<form name="contact" data-netlify="true" netlify-honeypot="bot-field" hidden>
-  <input type="text" name="name"/><input type="email" name="email"/><textarea name="message"></textarea><input name="bot-field"/>
-</form>
 <canvas id="fog-canvas" aria-hidden="true"></canvas>
 <div class="noise-bg"></div>
 
@@ -4955,12 +4951,17 @@ function ContactPage() {
     setErr(found);
     const first = ['name', 'email', 'msg'].find(k => found[k]);
     if (first) { document.getElementById('cf-' + first)?.focus(); return; }
-    // Netlify Forms: post to the static "contact" form declared in the page body
-    const body = new URLSearchParams({ 'form-name': 'contact', 'bot-field': bot, name: f.name.trim(), email: f.email.trim(), message: f.msg.trim() }).toString();
+    // FormSubmit (works on GitHub Pages): sends the message to Jenna's inbox
     setSending(true); setFailed(false);
-    fetch('/', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
-      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); })
-      .then(() => { setSent(true); setF({ name: '', email: '', msg: '' }); setTimeout(() => setSent(false), 4000); })
+    const done = () => { setSent(true); setF({ name: '', email: '', msg: '' }); setTimeout(() => setSent(false), 4000); };
+    if (bot) { setSending(false); done(); return; }
+    fetch('https://formsubmit.co/ajax/jenna030917@gmail.com', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ name: f.name.trim(), email: f.email.trim(), message: f.msg.trim(), _subject: '作品集網站新訊息 — ' + f.name.trim(), _replyto: f.email.trim(), _template: 'table', _captcha: 'false' })
+    })
+      .then(r => r.json().then(d => { if (!r.ok || String(d.success) !== 'true') throw new Error(d.message || 'HTTP ' + r.status); }))
+      .then(done)
       .catch(() => setFailed(true))
       .finally(() => setSending(false));
   };
